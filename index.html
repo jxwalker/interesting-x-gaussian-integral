@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Interesting X · Squaring the Bell: why the bell curve's area is the square root of pi</title>
+    <meta name="description" content="No ordinary formula gives the bell curve's area. So build a 3D bell hill and weigh it twice: cut into slabs it holds area x area, peeled into rings it holds exactly pi. Same hill, so the area is the square root of pi." />
+    <meta name="theme-color" content="#0a0f1a" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1322'/%3E%3Cpath d='M3 26 C10 26 11 6 16 6 C21 6 22 26 29 26 Z' fill='%23efe6cf' stroke='%232a2a2a' stroke-width='1.2'/%3E%3Crect x='3' y='26' width='26' height='3' fill='%23d4a955'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage"></div>
+      <svg id="leaders" aria-hidden="true"></svg>
+      <div id="labels" aria-hidden="true"></div>
+      <div id="fade" aria-hidden="true"></div>
+
+      <header class="intro" id="intro">
+        <h1>Squaring the Bell</h1>
+        <p class="sub">why the bell curve's area is the square root of π</p>
+        <div class="hint-row">
+          <p class="hint">Drag <b>Number of slices</b>, or press <b>Peel into rings</b>. Tap a slab to weigh it.</p>
+          <div class="top-btns">
+            <button class="btn chip numbers-btn" id="btn-numbers" type="button" aria-controls="numbers" aria-expanded="false">Numbers</button>
+            <button class="help" id="btn-help" type="button" aria-controls="explain" aria-expanded="false" aria-label="What am I looking at?"><i aria-hidden="true">?</i><span>What am I looking at?</span></button>
+          </div>
+        </div>
+      </header>
+
+      <!-- phones: the two dials and the odometer shrink to a strip -->
+      <div class="dialstrip" id="dialstrip" aria-label="Dials">
+        <div class="mini"><svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27" class="mface" /><path id="mtrackA" class="mtrack" /><line id="mpiA" class="mpi" /><line id="mneedleA" class="mneedle" /><circle cx="30" cy="30" r="3" /></svg><span><b>Slabs say</b><em class="mono" id="mvalA">—</em></span></div>
+        <div class="mini"><svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27" class="mface" /><path id="mtrackB" class="mtrack" /><line id="mpiB" class="mpi" /><line id="mneedleB" class="mneedle" /><circle cx="30" cy="30" r="3" /></svg><span><b>Rings say</b><em class="mono" id="mvalB">—</em></span></div>
+        <div class="mini odo"><span><b>Area I</b><em class="mono" id="modo">—</em></span></div>
+      </div>
+
+      <div class="badge" id="badge" hidden>simple mode (no WebGL)</div>
+
+      <section class="panel dock collapsed-phone" id="dock" aria-label="Controls">
+        <button class="sheet-handle" id="btn-sheet" type="button" aria-controls="dock" aria-expanded="false"><i aria-hidden="true"></i><span id="sheet-label">More controls</span></button>
+        <p class="caption" id="caption" aria-live="polite"><i class="dot" aria-hidden="true"></i><span id="caption-text">One hill, two ways to measure it.</span></p>
+
+        <label class="ctl slices-ctl">
+          <span class="ctl-row"><span class="cap">Number of slices <span class="tag">N</span></span><span class="mono val" id="slices-val">24</span></span>
+          <input id="slices" type="range" min="4" max="200" step="1" value="24" aria-label="Number of slices: how many slabs or rings the hill is cut into" />
+          <span class="desc" id="slices-desc">More cuts, finer pieces: both sums close in on the hill's true volume.</span>
+        </label>
+
+        <div class="btn-row main-row">
+          <button id="btn-mode" class="btn primary" type="button" title="Switch between the two ways of measuring the hill">Peel into rings</button>
+          <button id="btn-play" class="btn" type="button" title="Replay the opening: slabs, rings, the cascade and the width sweep">Watch it again</button>
+        </div>
+
+        <label class="ctl">
+          <span class="ctl-row"><span class="cap">Make the bell wider / narrower <span class="tag">s</span></span><span class="mono val" id="width-val">s = 1.00</span></span>
+          <input id="width" type="range" min="0.5" max="2" step="0.01" value="1" aria-label="Make the bell wider or narrower: the width s of e^(-(x²+y²)/s²)" />
+          <span class="desc" id="width-desc">Area s√π = 1.77. As a normal curve σ = s/√2 = 0.71, so the area is σ√(2π): that's the 1/√(2π) in front of the bell-curve formula.</span>
+        </label>
+
+        <div class="presets">
+          <span class="cap">Try</span>
+          <div class="chips">
+            <button class="btn chip" id="preset-coarse" type="button" title="Cut the hill into just 6 slices">6 rough slices</button>
+            <button class="btn chip" id="preset-fine" type="button" title="Cut the hill into 200 thin slices">200 fine slices</button>
+            <button class="btn chip" id="preset-textbook" type="button" title="Back to the textbook bell e^(-x²), width s = 1">Textbook bell (s = 1)</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btn-flatten" class="btn" type="button" title="Stretch the bell to width s = 2, very wide and flat">Flatten the bell</button>
+          <button id="btn-flatten-undo" class="btn dim" type="button" title="Undo the flattening: the width you had before">Back to the example</button>
+        </div>
+        <div class="btn-row">
+          <button id="btn-reset" class="btn" type="button" title="Restore everything: route, slices, width, dimensions, options, darts, view">Reset to example</button>
+          <button id="btn-advanced" class="btn" type="button" aria-expanded="false" aria-controls="adv">More</button>
+        </div>
+      </section>
+
+      <aside class="panel adv" id="adv" hidden aria-label="More">
+        <div class="adv-head">
+          <span class="cap">More, for the curious</span>
+          <button class="x" id="btn-adv-close" type="button" aria-label="Close">×</button>
+        </div>
+        <label class="ctl">
+          <span class="ctl-row"><span class="cap">Dimensions <span class="tag">n</span></span><span class="mono val" id="dims-val">3</span></span>
+          <input id="dims" type="range" min="1" max="8" step="1" value="3" aria-label="Dimensions: the bell e^(-(x₁²+…+xₙ²)) in n dimensions" />
+          <span class="desc" id="dims-desc">—</span>
+          <canvas id="balls" width="300" height="90" aria-label="Volume of the unit ball in each dimension, peaking at 5"></canvas>
+          <span class="desc">Brass bars: the unit ball's volume Vₙ = π^(n/2) / Γ(n/2 + 1) for n = 1 … 12. The π^(n/2) is Iⁿ, the n-dimensional bell; Γ is the Gamma function, the factorial stretched to halves.</span>
+        </label>
+        <div class="ctl">
+          <button id="btn-darts" class="btn" type="button" title="Monte Carlo: throw seeded random darts into the box over the plate">Throw 2,000 darts</button>
+          <span class="desc" id="darts-desc">Darts land at random in the box over the plate, 0 to 1 tall. Lime = under the hill. Box volume × share under = an estimate of the volume.</span>
+        </div>
+        <label class="check"><input id="show-erf" type="checkbox" /><span><span class="cap">Show the running area of one slab</span><span class="desc">A teal curve along the lime slab: its area so far, (s√π/2)(1 + erf(y/s)) × its height. erf, the error function, is that running area of the bell; it has no formula in ordinary functions.</span></span></label>
+        <label class="check"><input id="show-convergence" type="checkbox" /><span><span class="cap">Show how fast the sums settle</span><span class="desc">Error of each sum against π s², log scale.</span></span></label>
+        <div class="conv" id="conv" hidden>
+          <canvas id="convplot" width="300" height="120" aria-label="Error of the slab and ring sums against the number of slices, log scale"></canvas>
+          <span class="desc leg"><span><i class="sw sl"></i>slabs (equal widths)</span><span><i class="sw rg"></i>rings (mid-radius)</span></span>
+          <table class="convtab" id="convtab"></table>
+          <span class="desc">Slabs: equal-width sums of a smooth bell that fades to nothing settle exponentially fast (error ≈ 2 e^(−π²/dx²)). Rings: the profile 2π r e^(−r²) starts on a steep ramp at the centre, so mid-radius sums only shrink as dr².</span>
+        </div>
+      </aside>
+
+      <section class="numbers" id="numbers" aria-label="The numbers">
+        <div class="card" id="card">
+          <div class="card-title">The numbers</div>
+          <div class="row"><span class="k">Slabs say (I × I)</span><b class="mono" id="n-slab">—</b></div>
+          <div class="row"><span class="k">Rings say</span><b class="mono" id="n-ring">—</b><span class="m" id="n-ring-m">exact: π = 3.14159</span></div>
+          <div class="row"><span class="k">So the bell curve's area I</span><b class="mono" id="n-I">—</b><span class="m">the odometer: √ of what the slabs hold</span></div>
+          <div class="row"><span class="k">Width of the bell</span><b class="mono" id="n-w">—</b><span class="m" id="n-w-m">—</span></div>
+          <div class="row"><span class="k">How far off with this many slices</span><b class="mono" id="n-err">—</b><span class="m">On the plate only, against π erf(3)² (slabs) and π(1 − e⁻⁹) (rings); the thin skirt beyond the plate adds the last 0.0001. Slabs include the standard edge term where the plate cuts the hill.</span></div>
+          <table class="pieces" id="pieces" aria-label="The last few pieces"></table>
+        </div>
+      </section>
+
+      <section class="panel explain-card" id="explain" role="dialog" aria-labelledby="explain-title" hidden>
+        <div class="explain-head">
+          <h2 id="explain-title">Why the bell curve's area is the square root of pi</h2>
+          <button class="x" id="btn-explain-x" type="button" aria-label="Close explanation">×</button>
+        </div>
+        <p><b>What you're looking at:</b> A 3D hill made by spinning the bell curve round. Its height is the bell curve in one direction times the bell curve in the other. We measure how much clay is in it, two different ways.</p>
+        <p><b>Why it matters:</b> The bell curve is everywhere, from exam scores to noise in a photo, and you constantly need its area. But no ordinary formula has it as its slope, so the usual way of finding areas fails. The trick: build the 3D hill. Cut into slabs, it holds (area) × (area). Peeled into rings, each ring is easy to add up, because 2π r e^(−r²) is exactly the slope of something simple. The total is π. So area × area = π, and the area is the square root of π. That's where the square root of 2π in every bell-curve formula comes from. <span class="aside">(Switching from slabs to rings is the change to polar coordinates; the r in 2π r is the Jacobian: how much room a ring has.)</span></p>
+        <p class="try"><span>How to use it</span></p>
+        <ol class="try-steps">
+          <li>Drag <b>Number of slices</b>: both dials settle on the same number as the cuts get finer.</li>
+          <li>Press <b>Peel into rings</b>: each ring unrolls into the tray and the total climbs to π.</li>
+          <li>Press <b>Cut into slabs</b> to go back: every slab is a smaller bell curve.</li>
+          <li><b>Make the bell wider</b>: the volume grows as π × width², the area as width × square root of π.</li>
+          <li><b>Reset to example</b> puts everything back.</li>
+        </ol>
+        <div class="explain-foot"><button class="btn primary" id="btn-explain-ok" type="button">Got it</button></div>
+      </section>
+
+      <footer class="credit credit-foot">
+        <span class="lead">Inspired by </span><a href="https://x.com/Math_files/status/2105779801718132927" target="_blank" rel="noopener">@Math_files</a><span class="wide"> ·
+        <a href="https://en.wikipedia.org/wiki/Gaussian_integral" target="_blank" rel="noopener">Gaussian integral</a> ·
+        <a href="https://en.wikipedia.org/wiki/Error_function" target="_blank" rel="noopener">Error function</a> ·
+        <a href="https://en.wikipedia.org/wiki/Volume_of_an_n-ball" target="_blank" rel="noopener">n-ball</a></span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
